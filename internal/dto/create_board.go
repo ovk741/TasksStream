@@ -1,5 +1,5 @@
 package dto
 
-type CreateTypeRequest struct {
+type CreateBoardRequest struct {
 	Name string `json:"name"`
 }

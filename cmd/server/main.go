@@ -1,28 +1,70 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
+	"strconv"
+	"time"
+
+	httpapi "github.com/ovk741/TasksStream/internal/api/http"
+	"github.com/ovk741/TasksStream/internal/storage/memory"
 )
 
 func main() {
-	http.HandleFunc("/health", healthHandler)
+	repo := memory.NewBoardRepository()
+	columnRepo := memory.NewColumnRepository()
+	taskRepo := memory.NewTaskRepository()
 
-	log.Println("Server is running on:8080")
+	http.HandleFunc("/boards", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
 
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+		case http.MethodPost:
+			handler := httpapi.CreateBoardHandler(repo, generateID)
+			handler(w, r)
+
+		case http.MethodGet:
+			handler := httpapi.GetBoardsHandler(repo)
+			handler(w, r)
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/columns", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+
+		case http.MethodPost:
+			handler := httpapi.CreateColumnHandler(columnRepo, generateID)
+			handler(w, r)
+
+		case http.MethodGet:
+			handler := httpapi.GetColumnsByBoardHandler(columnRepo)
+			handler(w, r)
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+
+		case http.MethodPost:
+			handler := httpapi.CreateTaskHandler(taskRepo, generateID)
+			handler(w, r)
+
+		case http.MethodGet:
+			handler := httpapi.GetTasksByColumnHandler(taskRepo)
+			handler(w, r)
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.ListenAndServe(":8080", nil)
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"status": "ok",
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(response)
+func generateID() string {
+	return strconv.FormatInt(time.Now().UnixNano(), 10)
 }
