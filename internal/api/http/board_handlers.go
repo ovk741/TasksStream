@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/ovk741/TasksStream/internal/domain"
-	"github.com/ovk741/TasksStream/internal/storage/memory"
+	"github.com/ovk741/TasksStream/internal/storage"
 )
 
-func CreateBoardHandler(repo *memory.BoardRepository, generateID func() string) http.HandlerFunc {
+func CreateBoardHandler(repo storage.BoardRepository, generateID func() string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -38,7 +38,7 @@ func CreateBoardHandler(repo *memory.BoardRepository, generateID func() string) 
 	}
 }
 
-func GetBoardsHandler(repo *memory.BoardRepository) http.HandlerFunc {
+func GetBoardsHandler(repo storage.BoardRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)

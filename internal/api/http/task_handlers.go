@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/ovk741/TasksStream/internal/domain"
-	"github.com/ovk741/TasksStream/internal/storage/memory"
+	"github.com/ovk741/TasksStream/internal/storage"
 )
 
 func CreateTaskHandler(
-	repo *memory.TaskRepository,
+	repo storage.TaskRepository,
 	generateID func() string,
 ) http.HandlerFunc {
 	var input struct {
@@ -46,7 +46,7 @@ func CreateTaskHandler(
 	}
 }
 
-func GetTasksByColumnHandler(repo *memory.TaskRepository) http.HandlerFunc {
+func GetTasksByColumnHandler(repo storage.TaskRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != http.MethodGet {

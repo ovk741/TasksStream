@@ -6,23 +6,24 @@ import (
 	"time"
 
 	httpapi "github.com/ovk741/TasksStream/internal/api/http"
+	"github.com/ovk741/TasksStream/internal/storage"
 	"github.com/ovk741/TasksStream/internal/storage/memory"
 )
 
 func main() {
-	repo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	var boardRepo storage.BoardRepository = memory.NewBoardRepository()
+	var columnRepo storage.ColumnRepository = memory.NewColumnRepository()
+	var taskRepo storage.TaskRepository = memory.NewTaskRepository()
 
 	http.HandleFunc("/boards", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 
 		case http.MethodPost:
-			handler := httpapi.CreateBoardHandler(repo, generateID)
+			handler := httpapi.CreateBoardHandler(boardRepo, generateID)
 			handler(w, r)
 
 		case http.MethodGet:
-			handler := httpapi.GetBoardsHandler(repo)
+			handler := httpapi.GetBoardsHandler(boardRepo)
 			handler(w, r)
 
 		default:
