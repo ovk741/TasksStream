@@ -3,21 +3,12 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/ovk741/TasksStream/internal/domain"
-	"github.com/ovk741/TasksStream/internal/storage"
+	"github.com/ovk741/TasksStream/internal/service"
 )
 
-func CreateTaskHandler(
-	repo storage.TaskRepository,
-	generateID func() string,
-) http.HandlerFunc {
-	var input struct {
-		ColumnID    string `json:"column_id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-	}
+func CreateTaskHandler(taskService service.TaskService) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != http.MethodPost {
@@ -25,28 +16,34 @@ func CreateTaskHandler(
 			return
 		}
 
+		var input struct {
+			Title       string `json:"title"`
+			ColumnID    string `json:"column_id"`
+			Description string `json:"description"`
+		}
+
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		task := domain.Task{
-			ID:          generateID(),
-			ColumnID:    input.ColumnID,
-			Title:       input.Title,
-			Description: input.Description,
-			Position:    0,
-			CreatedAt:   time.Now(),
+		task, err := taskService.Create(input.Title, input.Description, input.ColumnID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": err.Error(),
+			})
+			return
 		}
 
-		repo.Create(task)
-
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(task)
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(task)
 	}
 }
 
-func GetTasksByColumnHandler(repo storage.TaskRepository) http.HandlerFunc {
+func GetTasksByColumnHandler(taskService service.TaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != http.MethodGet {
@@ -60,7 +57,14 @@ func GetTasksByColumnHandler(repo storage.TaskRepository) http.HandlerFunc {
 			return
 		}
 
-		tasks := repo.GetByColumnID(columnID)
+		tasks, err := taskService.GetByColumnID(columnID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": err.Error(),
+			})
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(tasks)

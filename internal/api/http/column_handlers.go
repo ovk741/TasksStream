@@ -3,20 +3,11 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/ovk741/TasksStream/internal/domain"
-	"github.com/ovk741/TasksStream/internal/storage"
+	"github.com/ovk741/TasksStream/internal/service"
 )
 
-func CreateColumnHandler(
-	repo storage.ColumnRepository,
-	generateID func() string,
-) http.HandlerFunc {
-	var input struct {
-		BoardID string `json:"board_id"`
-		Name    string `json:"name"`
-	}
+func CreateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -25,27 +16,33 @@ func CreateColumnHandler(
 			return
 		}
 
+		var input struct {
+			BoardID string `json:"board_id"`
+			Title   string `json:"title"`
+		}
+
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		column := domain.Column{
-			ID:        generateID(),
-			BoardID:   input.BoardID,
-			Title:     input.Name,
-			Position:  0,
-			CreatedAt: time.Now(),
+		column, err := columnService.Create(input.Title, input.BoardID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": err.Error(),
+			})
+			return
 		}
 
-		repo.Create(column)
-
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(column)
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(column)
 	}
 }
 
-func GetColumnsByBoardHandler(repo storage.ColumnRepository) http.HandlerFunc {
+func GetColumnsByBoardHandler(columnService service.ColumnService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != http.MethodGet {
@@ -59,7 +56,14 @@ func GetColumnsByBoardHandler(repo storage.ColumnRepository) http.HandlerFunc {
 			return
 		}
 
-		columns := repo.GetByBoardID(boardID)
+		columns, err := columnService.GetByBoardID(boardID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": err.Error(),
+			})
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(columns)

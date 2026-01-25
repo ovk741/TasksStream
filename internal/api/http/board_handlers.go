@@ -3,13 +3,11 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/ovk741/TasksStream/internal/domain"
-	"github.com/ovk741/TasksStream/internal/storage"
+	"github.com/ovk741/TasksStream/internal/service"
 )
 
-func CreateBoardHandler(repo storage.BoardRepository, generateID func() string) http.HandlerFunc {
+func CreateBoardHandler(boardService service.BoardService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -25,29 +23,38 @@ func CreateBoardHandler(repo storage.BoardRepository, generateID func() string) 
 			return
 		}
 
-		board := domain.Board{
-			ID:        generateID(),
-			Name:      input.Name,
-			CreatedAt: time.Now(),
+		board, err := boardService.Create(input.Name)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": err.Error(),
+			})
+			return
 		}
 
-		repo.Create(board)
-
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(board)
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(board)
 	}
 }
 
-func GetBoardsHandler(repo storage.BoardRepository) http.HandlerFunc {
+func GetBoardsHandler(boardService service.BoardService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
-		boards := repo.GetAll()
+		boards, err := boardService.GetAll()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": err.Error(),
+			})
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(boards)
+		_ = json.NewEncoder(w).Encode(boards)
 	}
 }

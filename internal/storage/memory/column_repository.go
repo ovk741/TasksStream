@@ -27,3 +27,7 @@ func (r *ColumnRepository) GetByBoardID(boardID string) []domain.Column {
 
 	return result
 }
+func (r *ColumnRepository) Exists(columnID string) bool {
+	_, ok := r.columns[columnID]
+	return ok
+}

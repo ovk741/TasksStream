@@ -6,6 +6,7 @@ import (
 	"time"
 
 	httpapi "github.com/ovk741/TasksStream/internal/api/http"
+	"github.com/ovk741/TasksStream/internal/service"
 	"github.com/ovk741/TasksStream/internal/storage"
 	"github.com/ovk741/TasksStream/internal/storage/memory"
 )
@@ -15,15 +16,20 @@ func main() {
 	var columnRepo storage.ColumnRepository = memory.NewColumnRepository()
 	var taskRepo storage.TaskRepository = memory.NewTaskRepository()
 
+	boardService := service.NewBoardService(boardRepo, generateID)
+	columnService := service.NewColumnService(columnRepo, boardRepo, generateID)
+	taskService := service.NewTaskService(taskRepo, columnRepo, generateID)
+
 	http.HandleFunc("/boards", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 
 		case http.MethodPost:
-			handler := httpapi.CreateBoardHandler(boardRepo, generateID)
+
+			handler := httpapi.CreateBoardHandler(boardService)
 			handler(w, r)
 
 		case http.MethodGet:
-			handler := httpapi.GetBoardsHandler(boardRepo)
+			handler := httpapi.GetBoardsHandler(boardService)
 			handler(w, r)
 
 		default:
@@ -35,11 +41,11 @@ func main() {
 		switch r.Method {
 
 		case http.MethodPost:
-			handler := httpapi.CreateColumnHandler(columnRepo, generateID)
+			handler := httpapi.CreateColumnHandler(columnService)
 			handler(w, r)
 
 		case http.MethodGet:
-			handler := httpapi.GetColumnsByBoardHandler(columnRepo)
+			handler := httpapi.GetColumnsByBoardHandler(columnService)
 			handler(w, r)
 
 		default:
@@ -51,11 +57,11 @@ func main() {
 		switch r.Method {
 
 		case http.MethodPost:
-			handler := httpapi.CreateTaskHandler(taskRepo, generateID)
+			handler := httpapi.CreateTaskHandler(taskService)
 			handler(w, r)
 
 		case http.MethodGet:
-			handler := httpapi.GetTasksByColumnHandler(taskRepo)
+			handler := httpapi.GetTasksByColumnHandler(taskService)
 			handler(w, r)
 
 		default:

@@ -25,3 +25,8 @@ func (r *BoardRepository) GetAll() []domain.Board {
 	}
 	return result
 }
+
+func (r *BoardRepository) Exists(boardID string) bool {
+	_, ok := r.boards[boardID]
+	return ok
+}
