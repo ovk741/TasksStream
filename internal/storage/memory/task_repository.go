@@ -1,10 +1,16 @@
 package memory
 
-import "github.com/ovk741/TasksStream/internal/domain"
+import (
+	"errors"
+
+	"github.com/ovk741/TasksStream/internal/domain"
+)
 
 type TaskRepository struct {
 	tasks map[string]domain.Task
 }
+
+var ErrNotFound = errors.New("not found")
 
 func NewTaskRepository() *TaskRepository {
 	return &TaskRepository{
@@ -26,4 +32,30 @@ func (r *TaskRepository) GetByColumnID(columnID string) []domain.Task {
 	}
 
 	return result
+}
+
+func (r *TaskRepository) GetByID(id string) (domain.Task, error) {
+	task, ok := r.tasks[id]
+	if !ok {
+		return domain.Task{}, ErrNotFound
+	}
+	return task, nil
+}
+
+func (r *TaskRepository) Update(task domain.Task) error {
+	if _, ok := r.tasks[task.ID]; !ok {
+		return ErrNotFound
+	}
+
+	r.tasks[task.ID] = task
+	return nil
+}
+
+func (r *TaskRepository) Delete(id string) error {
+	if _, ok := r.tasks[id]; !ok {
+		return ErrNotFound
+	}
+
+	delete(r.tasks, id)
+	return nil
 }

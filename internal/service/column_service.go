@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/ovk741/TasksStream/internal/domain"
@@ -11,15 +10,23 @@ import (
 type ColumnService interface {
 	Create(title string, boardID string) (domain.Column, error)
 	GetByBoardID(boardID string) ([]domain.Column, error)
+	Update(columnID string, title string) (domain.Column, error)
+	Delete(columnID string) error
 }
 
 type columnService struct {
 	columnRepo storage.ColumnRepository
 	boardRepo  storage.BoardRepository
+	taskRepo   storage.TaskRepository
 	generateID func() string
 }
 
-func NewColumnService(columnRepo storage.ColumnRepository, boardRepo storage.BoardRepository, generateID func() string) ColumnService {
+func NewColumnService(
+	columnRepo storage.ColumnRepository,
+	boardRepo storage.BoardRepository,
+	taskRepo storage.TaskRepository,
+	generateID func() string,
+) ColumnService {
 	return &columnService{
 		columnRepo: columnRepo,
 		boardRepo:  boardRepo,
@@ -29,11 +36,12 @@ func NewColumnService(columnRepo storage.ColumnRepository, boardRepo storage.Boa
 
 func (s *columnService) Create(title string, boardID string) (domain.Column, error) {
 	if title == "" {
-		return domain.Column{}, errors.New("column title is empty")
+		return domain.Column{}, ErrInvalidInput
 	}
 
-	if !s.boardRepo.Exists(boardID) {
-		return domain.Column{}, errors.New("board not found")
+	_, err := s.boardRepo.GetByID(boardID)
+	if err != nil {
+		return domain.Column{}, ErrNotFound
 	}
 
 	column := domain.Column{
@@ -49,8 +57,48 @@ func (s *columnService) Create(title string, boardID string) (domain.Column, err
 }
 func (s *columnService) GetByBoardID(boardID string) ([]domain.Column, error) {
 
-	if !s.boardRepo.Exists(boardID) {
-		return nil, errors.New("board not found")
+	_, err := s.boardRepo.GetByID(boardID)
+	if err != nil {
+		return nil, ErrNotFound
 	}
 	return s.columnRepo.GetByBoardID(boardID), nil
+}
+
+func (s *columnService) Update(columnID string, title string) (domain.Column, error) {
+	if columnID == "" || title == "" {
+		return domain.Column{}, ErrInvalidInput
+	}
+	column, err := s.columnRepo.GetByID(columnID)
+	if err != nil {
+		return domain.Column{}, err
+	}
+
+	column.Title = title
+
+	if err := s.columnRepo.Update(column); err != nil {
+		return domain.Column{}, err
+	}
+
+	return column, nil
+}
+
+func (s *columnService) Delete(columnID string) error {
+	if columnID == "" {
+		return ErrInvalidInput
+	}
+
+	_, err := s.columnRepo.GetByID(columnID)
+	if err != nil {
+		return err
+
+	}
+
+	tasks := s.taskRepo.GetByColumnID(columnID)
+
+	for _, task := range tasks {
+		_ = s.taskRepo.Delete(task.ID)
+	}
+
+	return s.columnRepo.Delete(columnID)
+
 }

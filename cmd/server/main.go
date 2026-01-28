@@ -16,8 +16,8 @@ func main() {
 	var columnRepo storage.ColumnRepository = memory.NewColumnRepository()
 	var taskRepo storage.TaskRepository = memory.NewTaskRepository()
 
-	boardService := service.NewBoardService(boardRepo, generateID)
-	columnService := service.NewColumnService(columnRepo, boardRepo, generateID)
+	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, generateID)
+	columnService := service.NewColumnService(columnRepo, boardRepo, taskRepo, generateID)
 	taskService := service.NewTaskService(taskRepo, columnRepo, generateID)
 
 	http.HandleFunc("/boards", func(w http.ResponseWriter, r *http.Request) {
@@ -32,9 +32,18 @@ func main() {
 			handler := httpapi.GetBoardsHandler(boardService)
 			handler(w, r)
 
+		case http.MethodPut:
+			handler := httpapi.UpdateBoardHandler(boardService)
+			handler(w, r)
+
+		case http.MethodDelete:
+			handler := httpapi.DeleteBoardHandler(boardService)
+			handler(w, r)
+
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+
 	})
 
 	http.HandleFunc("/columns", func(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +55,13 @@ func main() {
 
 		case http.MethodGet:
 			handler := httpapi.GetColumnsByBoardHandler(columnService)
+			handler(w, r)
+		case http.MethodPut:
+			handler := httpapi.UpdateColumnHandler(columnService)
+			handler(w, r)
+
+		case http.MethodDelete:
+			handler := httpapi.DeleteColumnHandler(columnService)
 			handler(w, r)
 
 		default:
@@ -62,6 +78,14 @@ func main() {
 
 		case http.MethodGet:
 			handler := httpapi.GetTasksByColumnHandler(taskService)
+			handler(w, r)
+
+		case http.MethodPut:
+			handler := httpapi.UpdateTaskHandler(taskService)
+			handler(w, r)
+
+		case http.MethodDelete:
+			handler := httpapi.DeleteTaskHandler(taskService)
 			handler(w, r)
 
 		default:

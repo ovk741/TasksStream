@@ -26,7 +26,27 @@ func (r *BoardRepository) GetAll() []domain.Board {
 	return result
 }
 
-func (r *BoardRepository) Exists(boardID string) bool {
-	_, ok := r.boards[boardID]
-	return ok
+func (r *BoardRepository) GetByID(boardID string) (domain.Board, error) {
+	board, ok := r.boards[boardID]
+	if !ok {
+		return domain.Board{}, ErrNotFound
+	}
+	return board, nil
+}
+
+func (r *BoardRepository) Update(board domain.Board) error {
+	if _, ok := r.boards[board.ID]; !ok {
+		return ErrNotFound
+	}
+	r.boards[board.ID] = board
+	return nil
+}
+
+func (r *BoardRepository) Delete(boardID string) error {
+	if _, ok := r.boards[boardID]; !ok {
+		return ErrNotFound
+	}
+
+	delete(r.boards, boardID)
+	return nil
 }
