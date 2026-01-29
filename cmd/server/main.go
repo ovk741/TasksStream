@@ -93,6 +93,8 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/tasks/move", httpapi.MoveTaskHandler(taskService))
+
 	http.ListenAndServe(":8080", nil)
 }
 

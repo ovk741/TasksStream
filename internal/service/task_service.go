@@ -11,6 +11,7 @@ type TaskService interface {
 	Create(title string, description string, columnID string) (domain.Task, error)
 	GetByColumnID(columnID string) ([]domain.Task, error)
 	Update(taskID string, title string, description string) (domain.Task, error)
+	Move(taskID string, columnID string) (domain.Task, error)
 	Delete(taskID string) error
 }
 
@@ -91,4 +92,27 @@ func (s *taskService) Delete(taskID string) error {
 	}
 	return s.taskRepo.Delete(taskID)
 
+}
+
+func (s *taskService) Move(taskID string, columnID string) (domain.Task, error) {
+	if taskID == "" || columnID == "" {
+		return domain.Task{}, ErrInvalidInput
+	}
+	task, err := s.taskRepo.GetByID(taskID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	_, err = s.columnRepo.GetByID(columnID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	task.ColumnID = columnID
+
+	if err := s.taskRepo.Update(task); err != nil {
+		return domain.Task{}, err
+	}
+
+	return task, nil
 }
