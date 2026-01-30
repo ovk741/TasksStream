@@ -69,6 +69,8 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/columns/move", httpapi.MoveColumnHandler(columnService))
+
 	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 

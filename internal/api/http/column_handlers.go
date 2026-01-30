@@ -154,3 +154,43 @@ func DeleteColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 	}
 
 }
+
+func MoveColumnHandler(columnService service.ColumnService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		columnID := r.URL.Query().Get("id")
+		if columnID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var input struct {
+			Position int `json:"position"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		column, err := columnService.Move(columnID, input.Position)
+		if err != nil {
+			switch {
+			case errors.Is(err, service.ErrNotFound):
+				w.WriteHeader(http.StatusNotFound)
+			case errors.Is(err, service.ErrInvalidInput):
+				w.WriteHeader(http.StatusBadRequest)
+			default:
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(column)
+	}
+}

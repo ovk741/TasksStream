@@ -11,6 +11,7 @@ type TaskService interface {
 	Create(title string, description string, columnID string) (domain.Task, error)
 	GetByColumnID(columnID string) ([]domain.Task, error)
 	Update(taskID string, title string, description string) (domain.Task, error)
+	Move(taskID string, columnID string, position int) (domain.Task, error)
 	Delete(taskID string) error
 }
 
@@ -38,11 +39,14 @@ func (s *taskService) Create(title string, description string, columnID string) 
 		return domain.Task{}, ErrNotFound
 	}
 
+	tasks := s.taskRepo.GetByColumnID(columnID)
+
 	task := domain.Task{
 		ID:          s.generateID(),
 		Title:       title,
 		ColumnID:    columnID,
 		Description: description,
+		Position:    len(tasks),
 		CreatedAt:   time.Now(),
 	}
 
@@ -91,4 +95,36 @@ func (s *taskService) Delete(taskID string) error {
 	}
 	return s.taskRepo.Delete(taskID)
 
+}
+
+func (s *taskService) Move(taskID string, columnID string, position int) (domain.Task, error) {
+	if taskID == "" || columnID == "" || position < 1 {
+		return domain.Task{}, ErrInvalidInput
+	}
+	task, err := s.taskRepo.GetByID(taskID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	_, err = s.columnRepo.GetByID(columnID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	tasks := s.taskRepo.GetByColumnID(columnID)
+	for _, t := range tasks {
+		if t.Position >= position {
+			t.Position++
+			_ = s.taskRepo.Update(t)
+		}
+	}
+
+	task.ColumnID = columnID
+	task.Position = position
+
+	if err := s.taskRepo.Update(task); err != nil {
+		return domain.Task{}, err
+	}
+
+	return task, nil
 }
