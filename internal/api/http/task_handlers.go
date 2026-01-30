@@ -178,15 +178,21 @@ func MoveTaskHandler(taskService service.TaskService) http.HandlerFunc {
 		taskID := r.URL.Query().Get("id")
 		if taskID == "" {
 			w.WriteHeader(http.StatusBadRequest)
+<<<<<<< HEAD
 			_ = json.NewEncoder(w).Encode(map[string]string{
 				"error": "task id is required",
 			})
+=======
+>>>>>>> b512e667f12e94c97ef364f0d3c971cab3c6009f
 			return
 		}
 
 		var input struct {
 			ColumnID string `json:"column_id"`
+<<<<<<< HEAD
 			Position int    `json:"position"`
+=======
+>>>>>>> b512e667f12e94c97ef364f0d3c971cab3c6009f
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -194,9 +200,14 @@ func MoveTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			return
 		}
 
+<<<<<<< HEAD
 		task, err := taskService.Move(taskID, input.ColumnID, input.Position)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
+=======
+		task, err := taskService.Move(taskID, input.ColumnID)
+		if err != nil {
+>>>>>>> b512e667f12e94c97ef364f0d3c971cab3c6009f
 			switch {
 			case errors.Is(err, service.ErrNotFound):
 				w.WriteHeader(http.StatusNotFound)
@@ -205,14 +216,20 @@ func MoveTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			default:
 				w.WriteHeader(http.StatusInternalServerError)
 			}
+<<<<<<< HEAD
 			_ = json.NewEncoder(w).Encode(map[string]string{
 				"error": err.Error(),
 			})
+=======
+>>>>>>> b512e667f12e94c97ef364f0d3c971cab3c6009f
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+<<<<<<< HEAD
 		w.WriteHeader(http.StatusOK)
+=======
+>>>>>>> b512e667f12e94c97ef364f0d3c971cab3c6009f
 		_ = json.NewEncoder(w).Encode(task)
 	}
 }
