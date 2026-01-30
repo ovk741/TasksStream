@@ -11,6 +11,7 @@ type ColumnService interface {
 	Create(title string, boardID string) (domain.Column, error)
 	GetByBoardID(boardID string) ([]domain.Column, error)
 	Update(columnID string, title string) (domain.Column, error)
+	Move(columnID string, position int) (domain.Column, error)
 	Delete(columnID string) error
 }
 
@@ -43,11 +44,13 @@ func (s *columnService) Create(title string, boardID string) (domain.Column, err
 	if err != nil {
 		return domain.Column{}, ErrNotFound
 	}
+	columns := s.columnRepo.GetByBoardID(boardID)
 
 	column := domain.Column{
 		ID:        s.generateID(),
 		Title:     title,
 		BoardID:   boardID,
+		Position:  len(columns),
 		CreatedAt: time.Now(),
 	}
 
@@ -101,4 +104,51 @@ func (s *columnService) Delete(columnID string) error {
 
 	return s.columnRepo.Delete(columnID)
 
+}
+
+func (s *columnService) Move(columnID string, position int) (domain.Column, error) {
+	if columnID == "" || position < 0 {
+		return domain.Column{}, ErrInvalidInput
+	}
+	column, err := s.columnRepo.GetByID(columnID)
+	if err != nil {
+		return domain.Column{}, err
+	}
+
+	columns := s.columnRepo.GetByBoardID(column.BoardID)
+
+	if position >= len(columns) {
+		return domain.Column{}, ErrInvalidInput
+	}
+
+	oldPosition := column.Position
+
+	for _, c := range columns {
+		if c.ID == columnID {
+			continue
+		}
+
+		if oldPosition < position &&
+			c.Position > oldPosition &&
+			c.Position <= position {
+
+			c.Position--
+			_ = s.columnRepo.Update(c)
+		}
+
+		if oldPosition > position &&
+			c.Position < oldPosition &&
+			c.Position >= position {
+
+			c.Position++
+			_ = s.columnRepo.Update(c)
+		}
+	}
+
+	column.Position = position
+	if err := s.columnRepo.Update(column); err != nil {
+		return domain.Column{}, err
+	}
+
+	return column, nil
 }
