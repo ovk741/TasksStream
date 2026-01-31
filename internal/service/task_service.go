@@ -30,7 +30,7 @@ func NewTaskService(taskRepo storage.TaskRepository, columnRepo storage.ColumnRe
 }
 
 func (s *taskService) Create(title string, description string, columnID string) (domain.Task, error) {
-	if title == "" {
+	if title == "" || columnID == "" {
 		return domain.Task{}, ErrInvalidInput
 	}
 
@@ -39,7 +39,10 @@ func (s *taskService) Create(title string, description string, columnID string) 
 		return domain.Task{}, ErrNotFound
 	}
 
-	tasks := s.taskRepo.GetByColumnID(columnID)
+	tasks, err := s.taskRepo.GetByColumnID(columnID)
+	if err != nil {
+		return domain.Task{}, err
+	}
 
 	task := domain.Task{
 		ID:          s.generateID(),
@@ -55,12 +58,20 @@ func (s *taskService) Create(title string, description string, columnID string) 
 	return task, nil
 }
 func (s *taskService) GetByColumnID(columnID string) ([]domain.Task, error) {
+	if columnID == "" {
+		return nil, ErrInvalidInput
+	}
 
 	_, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, err
 	}
-	return s.taskRepo.GetByColumnID(columnID), nil
+
+	task, err := s.taskRepo.GetByColumnID(columnID)
+	if err != nil {
+		return nil, err
+	}
+	return task, nil
 }
 
 func (s *taskService) Update(taskID string, title string, description string) (domain.Task, error) {
@@ -76,11 +87,12 @@ func (s *taskService) Update(taskID string, title string, description string) (d
 
 	task.Description = description
 
-	if err := s.taskRepo.Update(task); err != nil {
+	updated, err := s.taskRepo.Update(task)
+	if err != nil {
 		return domain.Task{}, err
 	}
 
-	return task, nil
+	return updated, nil
 }
 
 func (s *taskService) Delete(taskID string) error {
@@ -97,34 +109,14 @@ func (s *taskService) Delete(taskID string) error {
 
 }
 
-func (s *taskService) Move(taskID string, columnID string, position int) (domain.Task, error) {
+func (s *taskService) Move(
+	taskID, columnID string,
+	position int,
+) (domain.Task, error) {
+
 	if taskID == "" || columnID == "" || position < 1 {
 		return domain.Task{}, ErrInvalidInput
 	}
-	task, err := s.taskRepo.GetByID(taskID)
-	if err != nil {
-		return domain.Task{}, err
-	}
 
-	_, err = s.columnRepo.GetByID(columnID)
-	if err != nil {
-		return domain.Task{}, err
-	}
-
-	tasks := s.taskRepo.GetByColumnID(columnID)
-	for _, t := range tasks {
-		if t.Position >= position {
-			t.Position++
-			_ = s.taskRepo.Update(t)
-		}
-	}
-
-	task.ColumnID = columnID
-	task.Position = position
-
-	if err := s.taskRepo.Update(task); err != nil {
-		return domain.Task{}, err
-	}
-
-	return task, nil
+	return s.taskRepo.Move(taskID, columnID, position)
 }

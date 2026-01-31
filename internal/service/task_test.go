@@ -1,16 +1,27 @@
 package service
 
 import (
+	"context"
+	"log"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ovk741/TasksStream/internal/domain"
-	"github.com/ovk741/TasksStream/internal/storage/memory"
+	"github.com/ovk741/TasksStream/internal/storage/postgres"
 )
 
 func TestCreateTask(t *testing.T) {
-	boardRepo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -48,9 +59,17 @@ func TestCreateTask(t *testing.T) {
 }
 
 func TestCreateTaskInvalidInput(t *testing.T) {
-	boardRepo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -71,7 +90,7 @@ func TestCreateTaskInvalidInput(t *testing.T) {
 		return "task-1"
 	})
 
-	_, err := service.Create("", "New", column.ID)
+	_, err = service.Create("", "New", column.ID)
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -83,9 +102,17 @@ func TestCreateTaskInvalidInput(t *testing.T) {
 }
 
 func TestTaskServiceCreateColumnNotFound(t *testing.T) {
-	boardRepo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -105,7 +132,7 @@ func TestTaskServiceCreateColumnNotFound(t *testing.T) {
 		return "task-1"
 	})
 
-	_, err := service.Create("Column", "New", "unknown-column")
+	_, err = service.Create("Column", "New", "unknown-column")
 
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
@@ -113,9 +140,17 @@ func TestTaskServiceCreateColumnNotFound(t *testing.T) {
 }
 
 func TestTaskServiceGetByColumnIDEmpty(t *testing.T) {
-	boardRepo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -147,9 +182,17 @@ func TestTaskServiceGetByColumnIDEmpty(t *testing.T) {
 }
 
 func TestTaskServiceGetByColumnIDWithData(t *testing.T) {
-	boardRepo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",

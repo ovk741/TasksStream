@@ -31,6 +31,7 @@ func NewColumnService(
 	return &columnService{
 		columnRepo: columnRepo,
 		boardRepo:  boardRepo,
+		taskRepo:   taskRepo,
 		generateID: generateID,
 	}
 }
@@ -44,7 +45,10 @@ func (s *columnService) Create(title string, boardID string) (domain.Column, err
 	if err != nil {
 		return domain.Column{}, ErrNotFound
 	}
-	columns := s.columnRepo.GetByBoardID(boardID)
+	columns, err := s.columnRepo.GetByBoardID(boardID)
+	if err != nil {
+		return domain.Column{}, err
+	}
 
 	column := domain.Column{
 		ID:        s.generateID(),
@@ -64,7 +68,11 @@ func (s *columnService) GetByBoardID(boardID string) ([]domain.Column, error) {
 	if err != nil {
 		return nil, ErrNotFound
 	}
-	return s.columnRepo.GetByBoardID(boardID), nil
+	column, err := s.columnRepo.GetByBoardID(boardID)
+	if err != nil {
+		return nil, err
+	}
+	return column, nil
 }
 
 func (s *columnService) Update(columnID string, title string) (domain.Column, error) {
@@ -78,7 +86,7 @@ func (s *columnService) Update(columnID string, title string) (domain.Column, er
 
 	column.Title = title
 
-	if err := s.columnRepo.Update(column); err != nil {
+	if _, err := s.columnRepo.Update(column); err != nil {
 		return domain.Column{}, err
 	}
 
@@ -86,6 +94,7 @@ func (s *columnService) Update(columnID string, title string) (domain.Column, er
 }
 
 func (s *columnService) Delete(columnID string) error {
+
 	if columnID == "" {
 		return ErrInvalidInput
 	}
@@ -93,13 +102,6 @@ func (s *columnService) Delete(columnID string) error {
 	_, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
 		return err
-
-	}
-
-	tasks := s.taskRepo.GetByColumnID(columnID)
-
-	for _, task := range tasks {
-		_ = s.taskRepo.Delete(task.ID)
 	}
 
 	return s.columnRepo.Delete(columnID)
@@ -110,45 +112,6 @@ func (s *columnService) Move(columnID string, position int) (domain.Column, erro
 	if columnID == "" || position < 0 {
 		return domain.Column{}, ErrInvalidInput
 	}
-	column, err := s.columnRepo.GetByID(columnID)
-	if err != nil {
-		return domain.Column{}, err
-	}
 
-	columns := s.columnRepo.GetByBoardID(column.BoardID)
-
-	if position >= len(columns) {
-		return domain.Column{}, ErrInvalidInput
-	}
-
-	oldPosition := column.Position
-
-	for _, c := range columns {
-		if c.ID == columnID {
-			continue
-		}
-
-		if oldPosition < position &&
-			c.Position > oldPosition &&
-			c.Position <= position {
-
-			c.Position--
-			_ = s.columnRepo.Update(c)
-		}
-
-		if oldPosition > position &&
-			c.Position < oldPosition &&
-			c.Position >= position {
-
-			c.Position++
-			_ = s.columnRepo.Update(c)
-		}
-	}
-
-	column.Position = position
-	if err := s.columnRepo.Update(column); err != nil {
-		return domain.Column{}, err
-	}
-
-	return column, nil
+	return s.columnRepo.Move(columnID, position)
 }

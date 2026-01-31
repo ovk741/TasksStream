@@ -54,7 +54,12 @@ func (s *boardService) GetAll() ([]domain.Board, error) {
 	if s == nil {
 		return nil, ErrInvalidInput
 	}
-	return s.boardRepo.GetAll(), nil
+	board, err := s.boardRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	return board, nil
 }
 
 func (s *boardService) Update(boardID string, name string) (domain.Board, error) {
@@ -68,7 +73,7 @@ func (s *boardService) Update(boardID string, name string) (domain.Board, error)
 
 	board.Name = name
 
-	if err := s.boardRepo.Update(board); err != nil {
+	if _, err := s.boardRepo.Update(board); err != nil {
 		return domain.Board{}, err
 	}
 
@@ -84,12 +89,14 @@ func (s *boardService) Delete(boardID string) error {
 	_, err := s.boardRepo.GetByID(boardID)
 	if err != nil {
 		return err
-
 	}
-	columns := s.columnRepo.GetByBoardID(boardID)
+	columns, err := s.columnRepo.GetByBoardID(boardID)
 
 	for _, column := range columns {
-		tasks := s.taskRepo.GetByColumnID(column.ID)
+		tasks, err := s.taskRepo.GetByColumnID(column.ID)
+		if err != nil {
+			return err
+		}
 		for _, task := range tasks {
 			_ = s.taskRepo.Delete(task.ID)
 		}

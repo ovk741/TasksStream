@@ -1,20 +1,31 @@
 package main
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	httpapi "github.com/ovk741/TasksStream/internal/api/http"
 	"github.com/ovk741/TasksStream/internal/service"
-	"github.com/ovk741/TasksStream/internal/storage"
-	"github.com/ovk741/TasksStream/internal/storage/memory"
+	"github.com/ovk741/TasksStream/internal/storage/postgres"
 )
 
 func main() {
-	var boardRepo storage.BoardRepository = memory.NewBoardRepository()
-	var columnRepo storage.ColumnRepository = memory.NewColumnRepository()
-	var taskRepo storage.TaskRepository = memory.NewTaskRepository()
+
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, generateID)
 	columnService := service.NewColumnService(columnRepo, boardRepo, taskRepo, generateID)
