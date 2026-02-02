@@ -2,9 +2,10 @@ package httpapi
 
 import (
 	"encoding/json"
-	"errors"
+
 	"net/http"
 
+	"github.com/ovk741/TasksStream/internal/domain"
 	"github.com/ovk741/TasksStream/internal/service"
 )
 
@@ -29,13 +30,7 @@ func CreateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 
 		column, err := columnService.Create(input.Title, input.BoardID)
 		if err != nil {
-			if errors.Is(err, service.ErrInvalidInput) {
-				SendError(w, http.StatusBadRequest, err)
-				return
-			}
-
-			SendError(w, http.StatusInternalServerError, err)
-
+			HandleError(w, err)
 			return
 		}
 
@@ -55,18 +50,13 @@ func GetColumnsByBoardHandler(columnService service.ColumnService) http.HandlerF
 
 		boardID := r.URL.Query().Get("board_id")
 		if boardID == "" {
-			w.WriteHeader(http.StatusBadRequest)
+			HandleError(w, domain.ErrInvalidInput)
 			return
 		}
 
 		columns, err := columnService.GetByBoardID(boardID)
 		if err != nil {
-			if errors.Is(err, service.ErrInvalidInput) {
-				SendError(w, http.StatusBadRequest, err)
-				return
-			}
-			SendError(w, http.StatusInternalServerError, err)
-
+			HandleError(w, err)
 			return
 
 		}
@@ -84,10 +74,7 @@ func UpdateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 		}
 		columnID := r.URL.Query().Get("id")
 		if columnID == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error": "column_id is required",
-			})
+			HandleError(w, domain.ErrInvalidInput)
 			return
 		}
 
@@ -102,20 +89,7 @@ func UpdateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 
 		column, err := columnService.Update(columnID, input.Title)
 		if err != nil {
-			switch {
-			case errors.Is(err, service.ErrNotFound):
-				w.WriteHeader(http.StatusNotFound)
-
-			case errors.Is(err, service.ErrInvalidInput):
-				w.WriteHeader(http.StatusBadRequest)
-
-			default:
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error": err.Error(),
-			})
+			HandleError(w, err)
 			return
 		}
 
@@ -137,16 +111,7 @@ func DeleteColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 		}
 		err := columnService.Delete(columnID)
 		if err != nil {
-			if errors.Is(err, service.ErrNotFound) {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-			if errors.Is(err, service.ErrInvalidInput) {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-
-			w.WriteHeader(http.StatusInternalServerError)
+			HandleError(w, err)
 			return
 		}
 
@@ -179,14 +144,7 @@ func MoveColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 
 		column, err := columnService.Move(columnID, input.Position)
 		if err != nil {
-			switch {
-			case errors.Is(err, service.ErrNotFound):
-				w.WriteHeader(http.StatusNotFound)
-			case errors.Is(err, service.ErrInvalidInput):
-				w.WriteHeader(http.StatusBadRequest)
-			default:
-				w.WriteHeader(http.StatusInternalServerError)
-			}
+			HandleError(w, err)
 			return
 		}
 

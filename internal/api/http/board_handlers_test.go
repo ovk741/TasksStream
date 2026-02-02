@@ -2,20 +2,31 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ovk741/TasksStream/internal/domain"
 	"github.com/ovk741/TasksStream/internal/service"
-	"github.com/ovk741/TasksStream/internal/storage/memory"
+	"github.com/ovk741/TasksStream/internal/storage/postgres"
 )
 
 func TestCreateBoardHandler(t *testing.T) {
-	boardRepo := memory.NewBoardRepository()
-	columnRepo := memory.NewColumnRepository()
-	taskRepo := memory.NewTaskRepository()
+	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	boardRepo := postgres.NewBoardRepository(pool)
+	columnRepo := postgres.NewColumnRepository(pool)
+	taskRepo := postgres.NewTaskRepository(pool)
 
 	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, func() string {
 		return "new-id"
