@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/ovk741/TasksStream/internal/domain"
 	"github.com/ovk741/TasksStream/internal/storage/postgres"
 )
 
@@ -66,7 +67,7 @@ func TestBoardServiceCreateInvalidInput(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	if err != ErrInvalidInput {
+	if err != domain.ErrInvalidInput {
 		t.Errorf("expected ErrInvalidInput, got %v", err)
 	}
 }

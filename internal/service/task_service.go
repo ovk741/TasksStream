@@ -31,12 +31,12 @@ func NewTaskService(taskRepo storage.TaskRepository, columnRepo storage.ColumnRe
 
 func (s *taskService) Create(title string, description string, columnID string) (domain.Task, error) {
 	if title == "" || columnID == "" {
-		return domain.Task{}, ErrInvalidInput
+		return domain.Task{}, domain.ErrInvalidInput
 	}
 
 	_, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
-		return domain.Task{}, ErrNotFound
+		return domain.Task{}, domain.ErrNotFound
 	}
 
 	tasks, err := s.taskRepo.GetByColumnID(columnID)
@@ -59,12 +59,12 @@ func (s *taskService) Create(title string, description string, columnID string) 
 }
 func (s *taskService) GetByColumnID(columnID string) ([]domain.Task, error) {
 	if columnID == "" {
-		return nil, ErrInvalidInput
+		return nil, domain.ErrInvalidInput
 	}
 
 	_, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
-		return nil, err
+		return nil, domain.ErrNotFound
 	}
 
 	task, err := s.taskRepo.GetByColumnID(columnID)
@@ -76,7 +76,7 @@ func (s *taskService) GetByColumnID(columnID string) ([]domain.Task, error) {
 
 func (s *taskService) Update(taskID string, title string, description string) (domain.Task, error) {
 	if taskID == "" || title == "" {
-		return domain.Task{}, ErrInvalidInput
+		return domain.Task{}, domain.ErrInvalidInput
 	}
 	task, err := s.taskRepo.GetByID(taskID)
 	if err != nil {
@@ -97,7 +97,7 @@ func (s *taskService) Update(taskID string, title string, description string) (d
 
 func (s *taskService) Delete(taskID string) error {
 	if taskID == "" {
-		return ErrInvalidInput
+		return domain.ErrInvalidInput
 	}
 
 	_, err := s.taskRepo.GetByID(taskID)
@@ -114,8 +114,8 @@ func (s *taskService) Move(
 	position int,
 ) (domain.Task, error) {
 
-	if taskID == "" || columnID == "" || position < 1 {
-		return domain.Task{}, ErrInvalidInput
+	if taskID == "" || columnID == "" || position < 0 {
+		return domain.Task{}, domain.ErrInvalidInput
 	}
 
 	return s.taskRepo.Move(taskID, columnID, position)

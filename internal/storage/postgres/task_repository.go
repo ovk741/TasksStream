@@ -40,14 +40,15 @@ func (r *TaskRepository) Create(task domain.Task) (domain.Task, error) {
 		&created.Position,
 		&created.CreatedAt,
 	); err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	return created, nil
 }
 
 func (r *TaskRepository) GetByColumnID(columnID string) ([]domain.Task, error) {
-	rows, err := r.db.Query(context.Background(),
+	rows, err := r.db.Query(
+		context.Background(),
 		`SELECT id, title, position, description, column_id, created_at 
 		FROM tasks 
 		WHERE column_id = $1 
@@ -55,9 +56,10 @@ func (r *TaskRepository) GetByColumnID(columnID string) ([]domain.Task, error) {
 		columnID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, domain.ErrInternal
 	}
 	defer rows.Close()
+
 	tasks := make([]domain.Task, 0)
 
 	for rows.Next() {
@@ -70,14 +72,14 @@ func (r *TaskRepository) GetByColumnID(columnID string) ([]domain.Task, error) {
 			&t.ColumnID,
 			&t.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, domain.ErrInternal
 		}
 
 		tasks = append(tasks, t)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, domain.ErrInternal
 	}
 
 	return tasks, nil
@@ -102,9 +104,9 @@ func (r *TaskRepository) GetByID(id string) (domain.Task, error) {
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Task{}, ErrNotFound
+			return domain.Task{}, domain.ErrNotFound
 		}
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	return t, nil
@@ -133,9 +135,9 @@ func (r *TaskRepository) Update(task domain.Task) (domain.Task, error) {
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Task{}, ErrNotFound
+			return domain.Task{}, domain.ErrNotFound
 		}
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	return updated, nil
@@ -155,9 +157,9 @@ func (r *TaskRepository) Delete(id string) error {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return domain.ErrNotFound
 		}
-		return err
+		return domain.ErrInternal
 	}
 
 	return nil
@@ -173,7 +175,7 @@ func (r *TaskRepository) Move(
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 	defer tx.Rollback(ctx)
 
@@ -192,7 +194,10 @@ func (r *TaskRepository) Move(
 		&task.CreatedAt,
 	)
 	if err != nil {
-		return domain.Task{}, ErrNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Task{}, domain.ErrNotFound
+		}
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	_, err = tx.Exec(ctx,
@@ -203,7 +208,7 @@ func (r *TaskRepository) Move(
 		columnID, position,
 	)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	err = tx.QueryRow(ctx,
@@ -221,11 +226,11 @@ func (r *TaskRepository) Move(
 		&task.CreatedAt,
 	)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, domain.ErrInternal
 	}
 
 	return task, nil

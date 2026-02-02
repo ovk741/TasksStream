@@ -38,12 +38,12 @@ func NewColumnService(
 
 func (s *columnService) Create(title string, boardID string) (domain.Column, error) {
 	if title == "" {
-		return domain.Column{}, ErrInvalidInput
+		return domain.Column{}, domain.ErrInvalidInput
 	}
 
 	_, err := s.boardRepo.GetByID(boardID)
 	if err != nil {
-		return domain.Column{}, ErrNotFound
+		return domain.Column{}, domain.ErrNotFound
 	}
 	columns, err := s.columnRepo.GetByBoardID(boardID)
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *columnService) GetByBoardID(boardID string) ([]domain.Column, error) {
 
 	_, err := s.boardRepo.GetByID(boardID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, domain.ErrNotFound
 	}
 	column, err := s.columnRepo.GetByBoardID(boardID)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *columnService) GetByBoardID(boardID string) ([]domain.Column, error) {
 
 func (s *columnService) Update(columnID string, title string) (domain.Column, error) {
 	if columnID == "" || title == "" {
-		return domain.Column{}, ErrInvalidInput
+		return domain.Column{}, domain.ErrInvalidInput
 	}
 	column, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
@@ -96,7 +96,7 @@ func (s *columnService) Update(columnID string, title string) (domain.Column, er
 func (s *columnService) Delete(columnID string) error {
 
 	if columnID == "" {
-		return ErrInvalidInput
+		return domain.ErrInvalidInput
 	}
 
 	_, err := s.columnRepo.GetByID(columnID)
@@ -110,7 +110,7 @@ func (s *columnService) Delete(columnID string) error {
 
 func (s *columnService) Move(columnID string, position int) (domain.Column, error) {
 	if columnID == "" || position < 0 {
-		return domain.Column{}, ErrInvalidInput
+		return domain.Column{}, domain.ErrInvalidInput
 	}
 
 	return s.columnRepo.Move(columnID, position)

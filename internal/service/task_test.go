@@ -96,7 +96,7 @@ func TestCreateTaskInvalidInput(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	if err != ErrInvalidInput {
+	if err != domain.ErrInvalidInput {
 		t.Errorf("expected ErrInvalidInput, got %v", err)
 	}
 }
@@ -134,7 +134,7 @@ func TestTaskServiceCreateColumnNotFound(t *testing.T) {
 
 	_, err = service.Create("Column", "New", "unknown-column")
 
-	if err != ErrNotFound {
+	if err != domain.ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }

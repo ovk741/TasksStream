@@ -37,7 +37,7 @@ func NewBoardService(
 
 func (s *boardService) Create(name string) (domain.Board, error) {
 	if name == "" {
-		return domain.Board{}, ErrInvalidInput
+		return domain.Board{}, domain.ErrInvalidInput
 	}
 
 	board := domain.Board{
@@ -46,14 +46,14 @@ func (s *boardService) Create(name string) (domain.Board, error) {
 		CreatedAt: time.Now(),
 	}
 
-	s.boardRepo.Create(board)
+	if _, err := s.boardRepo.Create(board); err != nil {
+		return domain.Board{}, err
+	}
 
 	return board, nil
 }
 func (s *boardService) GetAll() ([]domain.Board, error) {
-	if s == nil {
-		return nil, ErrInvalidInput
-	}
+
 	board, err := s.boardRepo.GetAll()
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (s *boardService) GetAll() ([]domain.Board, error) {
 
 func (s *boardService) Update(boardID string, name string) (domain.Board, error) {
 	if boardID == "" || name == "" {
-		return domain.Board{}, ErrInvalidInput
+		return domain.Board{}, domain.ErrInvalidInput
 	}
 	board, err := s.boardRepo.GetByID(boardID)
 	if err != nil {
@@ -83,25 +83,12 @@ func (s *boardService) Update(boardID string, name string) (domain.Board, error)
 
 func (s *boardService) Delete(boardID string) error {
 	if boardID == "" {
-		return ErrInvalidInput
+		return domain.ErrInvalidInput
 	}
 
 	_, err := s.boardRepo.GetByID(boardID)
 	if err != nil {
 		return err
-	}
-	columns, err := s.columnRepo.GetByBoardID(boardID)
-
-	for _, column := range columns {
-		tasks, err := s.taskRepo.GetByColumnID(column.ID)
-		if err != nil {
-			return err
-		}
-		for _, task := range tasks {
-			_ = s.taskRepo.Delete(task.ID)
-		}
-
-		_ = s.columnRepo.Delete(column.ID)
 	}
 
 	return s.boardRepo.Delete(boardID)

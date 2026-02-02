@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/ovk741/TasksStream/internal/service"
@@ -26,16 +25,7 @@ func CreateBoardHandler(boardService service.BoardService) http.HandlerFunc {
 
 		board, err := boardService.Create(input.Name)
 		if err != nil {
-			if errors.Is(err, service.ErrInvalidInput) {
-				SendError(w, http.StatusBadRequest, err)
-				return
-			}
-			if errors.Is(err, service.ErrNotFound) {
-				SendError(w, http.StatusNotFound, err)
-				return
-			}
-			SendError(w, http.StatusInternalServerError, err)
-
+			HandleError(w, err)
 			return
 		}
 
@@ -54,10 +44,8 @@ func GetBoardsHandler(boardService service.BoardService) http.HandlerFunc {
 
 		boards, err := boardService.GetAll()
 		if err != nil {
-			if errors.Is(err, service.ErrInvalidInput) {
-				SendError(w, http.StatusInternalServerError, err)
-				return
-			}
+			HandleError(w, err)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -91,20 +79,7 @@ func UpdateBoardHandler(boardService service.BoardService) http.HandlerFunc {
 
 		board, err := boardService.Update(boardID, input.Name)
 		if err != nil {
-			switch {
-			case errors.Is(err, service.ErrNotFound):
-				w.WriteHeader(http.StatusNotFound)
-
-			case errors.Is(err, service.ErrInvalidInput):
-				w.WriteHeader(http.StatusBadRequest)
-
-			default:
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error": err.Error(),
-			})
+			HandleError(w, err)
 			return
 		}
 
@@ -126,16 +101,7 @@ func DeleteBoardHandler(boardService service.BoardService) http.HandlerFunc {
 		}
 		err := boardService.Delete(boardID)
 		if err != nil {
-			if errors.Is(err, service.ErrNotFound) {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-			if errors.Is(err, service.ErrInvalidInput) {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-
-			w.WriteHeader(http.StatusInternalServerError)
+			HandleError(w, err)
 			return
 		}
 

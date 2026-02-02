@@ -38,7 +38,7 @@ func (r *ColumnRepository) Create(column domain.Column) (domain.Column, error) {
 		&created.Position,
 		&created.CreatedAt,
 	); err != nil {
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	return created, nil
@@ -54,9 +54,10 @@ func (r *ColumnRepository) GetByBoardID(boardID string) ([]domain.Column, error)
 		boardID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, domain.ErrInternal
 	}
 	defer rows.Close()
+
 	columns := make([]domain.Column, 0)
 
 	for rows.Next() {
@@ -68,14 +69,14 @@ func (r *ColumnRepository) GetByBoardID(boardID string) ([]domain.Column, error)
 			&c.BoardID,
 			&c.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, domain.ErrInternal
 		}
 
 		columns = append(columns, c)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, domain.ErrInternal
 	}
 
 	return columns, nil
@@ -102,40 +103,30 @@ func (r *ColumnRepository) Update(column domain.Column) (domain.Column, error) {
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Column{}, ErrNotFound
+			return domain.Column{}, domain.ErrNotFound
 		}
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	return updated, nil
 }
 
 func (r *ColumnRepository) Delete(columnID string) error {
-	ctx := context.Background()
-
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx,
-		`DELETE FROM tasks WHERE column_id = $1`,
+	row := r.db.QueryRow(
+		context.Background(),
+		`DELETE FROM columns WHERE id = $1 RETURNING id`,
 		columnID,
 	)
-	if err != nil {
-		return err
+
+	var deletedID string
+	if err := row.Scan(&deletedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
+		return domain.ErrInternal
 	}
 
-	_, err = tx.Exec(ctx,
-		`DELETE FROM columns WHERE id = $1`,
-		columnID,
-	)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
+	return nil
 }
 
 func (r *ColumnRepository) GetByID(columnID string) (domain.Column, error) {
@@ -156,9 +147,9 @@ func (r *ColumnRepository) GetByID(columnID string) (domain.Column, error) {
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Column{}, ErrNotFound
+			return domain.Column{}, domain.ErrNotFound
 		}
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	return c, nil
@@ -190,9 +181,9 @@ func (r *ColumnRepository) Move(columnID string, position int) (domain.Column, e
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Column{}, ErrNotFound
+			return domain.Column{}, domain.ErrNotFound
 		}
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	// count all columns
@@ -203,11 +194,11 @@ func (r *ColumnRepository) Move(columnID string, position int) (domain.Column, e
 		column.BoardID,
 	).Scan(&total)
 	if err != nil {
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	if position < 0 || position >= total {
-		return domain.Column{}, ErrInvalidInput
+		return domain.Column{}, domain.ErrInvalidInput
 	}
 
 	// if same position
@@ -231,7 +222,7 @@ func (r *ColumnRepository) Move(columnID string, position int) (domain.Column, e
 			position,
 		)
 		if err != nil {
-			return domain.Column{}, err
+			return domain.Column{}, domain.ErrInternal
 		}
 		// if move left
 	} else {
@@ -246,7 +237,7 @@ func (r *ColumnRepository) Move(columnID string, position int) (domain.Column, e
 			oldPosition,
 		)
 		if err != nil {
-			return domain.Column{}, err
+			return domain.Column{}, domain.ErrInternal
 		}
 	}
 
@@ -266,11 +257,11 @@ func (r *ColumnRepository) Move(columnID string, position int) (domain.Column, e
 		&column.CreatedAt,
 	)
 	if err != nil {
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return domain.Column{}, err
+		return domain.Column{}, domain.ErrInternal
 	}
 
 	return column, nil
