@@ -4,18 +4,42 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	httpapi "github.com/ovk741/TasksStream/internal/api/http"
+	"github.com/ovk741/TasksStream/internal/api/http/middleware"
+	"github.com/ovk741/TasksStream/internal/infra/auth"
+	"github.com/ovk741/TasksStream/internal/infra/security"
 	"github.com/ovk741/TasksStream/internal/service"
 	"github.com/ovk741/TasksStream/internal/storage/postgres"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
 
-	dsn := "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+	_ = godotenv.Load()
+
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		dsn = "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+	}
+
+	accessSecret := os.Getenv("ACCESS_SECRET")
+	if accessSecret == "" {
+		accessSecret = "super-secret-access-key"
+	}
+
+	refreshSecret := os.Getenv("REFRESH_SECRET")
+	if refreshSecret == "" {
+		refreshSecret = "super-secret-refresh-key"
+	}
+
+	accessTTL := 15 * time.Minute
+	refreshTTL := 30 * 24 * time.Hour
 
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
@@ -26,12 +50,26 @@ func main() {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	userRepo := postgres.NewUserRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
-	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, generateID)
-	columnService := service.NewColumnService(columnRepo, boardRepo, taskRepo, generateID)
-	taskService := service.NewTaskService(taskRepo, columnRepo, generateID)
+	jwtManager := auth.NewJWTManager(accessSecret, refreshSecret, accessTTL, refreshTTL)
 
-	http.HandleFunc("/boards", func(w http.ResponseWriter, r *http.Request) {
+	hasher := security.NewBcryptHasher(bcrypt.DefaultCost)
+
+	authService := service.NewAuthService(userRepo, hasher, jwtManager, generateID)
+
+	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, generateID)
+	columnService := service.NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, generateID)
+	taskService := service.NewTaskService(taskRepo, columnRepo, boardMemberRepo, generateID)
+	mux := http.NewServeMux()
+	authMW := middleware.AuthMiddleware(jwtManager)
+
+	mux.Handle("/auth/register", httpapi.RegisterHandler(authService))
+	mux.Handle("/auth/login", httpapi.LoginHandler(authService))
+	mux.Handle("/auth/refresh", httpapi.RefreshHandler(authService))
+
+	mux.Handle("/boards", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 
 		case http.MethodPost:
@@ -55,60 +93,43 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 
-	})
+	})))
 
-	http.HandleFunc("/columns", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/columns", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-
 		case http.MethodPost:
-			handler := httpapi.CreateColumnHandler(columnService)
-			handler(w, r)
-
+			httpapi.CreateColumnHandler(columnService)(w, r)
 		case http.MethodGet:
-			handler := httpapi.GetColumnsByBoardHandler(columnService)
-			handler(w, r)
+			httpapi.GetColumnsByBoardHandler(columnService)(w, r)
 		case http.MethodPut:
-			handler := httpapi.UpdateColumnHandler(columnService)
-			handler(w, r)
-
+			httpapi.UpdateColumnHandler(columnService)(w, r)
 		case http.MethodDelete:
-			handler := httpapi.DeleteColumnHandler(columnService)
-			handler(w, r)
-
+			httpapi.DeleteColumnHandler(columnService)(w, r)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
-	})
+	})))
 
-	http.HandleFunc("/columns/move", httpapi.MoveColumnHandler(columnService))
+	mux.Handle("/columns/move", authMW(httpapi.MoveColumnHandler(columnService)))
 
-	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/tasks", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-
 		case http.MethodPost:
-			handler := httpapi.CreateTaskHandler(taskService)
-			handler(w, r)
-
+			httpapi.CreateTaskHandler(taskService)(w, r)
 		case http.MethodGet:
-			handler := httpapi.GetTasksByColumnHandler(taskService)
-			handler(w, r)
-
+			httpapi.GetTasksByColumnHandler(taskService)(w, r)
 		case http.MethodPut:
-			handler := httpapi.UpdateTaskHandler(taskService)
-			handler(w, r)
-
+			httpapi.UpdateTaskHandler(taskService)(w, r)
 		case http.MethodDelete:
-			handler := httpapi.DeleteTaskHandler(taskService)
-			handler(w, r)
-
+			httpapi.DeleteTaskHandler(taskService)(w, r)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
-	})
+	})))
 
-	http.HandleFunc("/tasks/move", httpapi.MoveTaskHandler(taskService))
+	mux.Handle("/tasks/move", authMW(httpapi.MoveTaskHandler(taskService)))
 
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
 func generateID() string {

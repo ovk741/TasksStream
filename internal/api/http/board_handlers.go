@@ -14,6 +14,11 @@ func CreateBoardHandler(boardService service.BoardService) http.HandlerFunc {
 			return
 		}
 
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		var input struct {
 			Name string `json:"name"`
 		}
@@ -23,7 +28,7 @@ func CreateBoardHandler(boardService service.BoardService) http.HandlerFunc {
 			return
 		}
 
-		board, err := boardService.Create(input.Name)
+		board, err := boardService.Create(userID, input.Name)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -42,7 +47,12 @@ func GetBoardsHandler(boardService service.BoardService) http.HandlerFunc {
 			return
 		}
 
-		boards, err := boardService.GetAll()
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
+		boards, err := boardService.GetAll(userID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -76,8 +86,12 @@ func UpdateBoardHandler(boardService service.BoardService) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
 
-		board, err := boardService.Update(boardID, input.Name)
+		board, err := boardService.Update(userID, boardID, input.Name)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -99,7 +113,12 @@ func DeleteBoardHandler(boardService service.BoardService) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		err := boardService.Delete(boardID)
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
+		err := boardService.Delete(userID, boardID)
 		if err != nil {
 			HandleError(w, err)
 			return

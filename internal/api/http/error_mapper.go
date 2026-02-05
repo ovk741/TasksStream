@@ -16,6 +16,16 @@ func HandleError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrNotFound):
 		SendError(w, http.StatusNotFound, err)
 
+	case errors.Is(err, domain.ErrInvalidCredentials):
+		SendError(w, http.StatusUnauthorized, err)
+
+	case errors.Is(err, domain.ErrForbidden):
+		SendError(w, http.StatusForbidden, err)
+
+	case errors.Is(err, domain.ErrUserAlreadyExists),
+		errors.Is(err, domain.ErrConflict):
+		SendError(w, http.StatusConflict, err)
+
 	default:
 
 		log.Printf("internal error: %v", err)

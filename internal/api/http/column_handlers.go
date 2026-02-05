@@ -18,6 +18,11 @@ func CreateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 			return
 		}
 
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		var input struct {
 			BoardID string `json:"board_id"`
 			Title   string `json:"title"`
@@ -28,7 +33,7 @@ func CreateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 			return
 		}
 
-		column, err := columnService.Create(input.Title, input.BoardID)
+		column, err := columnService.Create(userID, input.Title, input.BoardID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -48,13 +53,18 @@ func GetColumnsByBoardHandler(columnService service.ColumnService) http.HandlerF
 			return
 		}
 
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		boardID := r.URL.Query().Get("board_id")
 		if boardID == "" {
 			HandleError(w, domain.ErrInvalidInput)
 			return
 		}
 
-		columns, err := columnService.GetByBoardID(boardID)
+		columns, err := columnService.GetByBoardID(userID, boardID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -72,6 +82,12 @@ func UpdateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		columnID := r.URL.Query().Get("id")
 		if columnID == "" {
 			HandleError(w, domain.ErrInvalidInput)
@@ -87,7 +103,7 @@ func UpdateColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 			return
 		}
 
-		column, err := columnService.Update(columnID, input.Title)
+		column, err := columnService.Update(userID, columnID, input.Title)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -104,12 +120,18 @@ func DeleteColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		columnID := r.URL.Query().Get("id")
 		if columnID == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		err := columnService.Delete(columnID)
+		err := columnService.Delete(userID, columnID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -124,6 +146,11 @@ func MoveColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
 			return
 		}
 
@@ -142,7 +169,7 @@ func MoveColumnHandler(columnService service.ColumnService) http.HandlerFunc {
 			return
 		}
 
-		column, err := columnService.Move(columnID, input.Position)
+		column, err := columnService.Move(userID, columnID, input.Position)
 		if err != nil {
 			HandleError(w, err)
 			return
