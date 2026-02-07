@@ -22,14 +22,15 @@ func TestCreateBoard(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	generateID := func() string {
 		return "board-1"
 	}
 
-	service := NewBoardService(boardRepo, columnRepo, taskRepo, generateID)
+	service := NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, generateID)
 
-	board, err := service.Create("My board")
+	board, err := service.Create("1", "My board")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -56,12 +57,13 @@ func TestBoardServiceCreateInvalidInput(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
-	service := NewBoardService(boardRepo, columnRepo, taskRepo, func() string {
+	service := NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, func() string {
 		return "board-1"
 	})
 
-	_, err = service.Create("")
+	_, err = service.Create("1", "")
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -84,12 +86,13 @@ func TestBoardServiceGetAllEmpty(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
-	service := NewBoardService(boardRepo, columnRepo, taskRepo, func() string {
+	service := NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, func() string {
 		return "id"
 	})
 
-	boards, err := service.GetAll()
+	boards, err := service.GetAll("1")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -112,15 +115,16 @@ func TestBoardServiceGetAllWithData(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
-	service := NewBoardService(boardRepo, columnRepo, taskRepo, func() string {
+	service := NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, func() string {
 		return "id"
 	})
 
-	_, _ = service.Create("Board 1")
-	_, _ = service.Create("Board 2")
+	_, _ = service.Create("1", "Board 1")
+	_, _ = service.Create("1", "Board 2")
 
-	boards, err := service.GetAll()
+	boards, err := service.GetAll("1")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

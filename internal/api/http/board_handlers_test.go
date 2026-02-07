@@ -27,8 +27,9 @@ func TestCreateBoardHandler(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
-	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, func() string {
+	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, func() string {
 		return "new-id"
 	})
 

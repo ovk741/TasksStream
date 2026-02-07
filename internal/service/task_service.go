@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"time"
 
 	"github.com/ovk741/TasksStream/internal/domain"
@@ -8,35 +9,46 @@ import (
 )
 
 type TaskService interface {
-	Create(title string, description string, columnID string) (domain.Task, error)
-	GetByColumnID(columnID string) ([]domain.Task, error)
-	Update(taskID string, title string, description string) (domain.Task, error)
-	Move(taskID string, columnID string, position int) (domain.Task, error)
-	Delete(taskID string) error
+	Create(userID, title, description, columnID string) (domain.Task, error)
+	GetByColumnID(userID, columnID string) ([]domain.Task, error)
+	Update(userID, taskID string, title string, description string) (domain.Task, error)
+	Move(userID, taskID string, columnID string, position int) (domain.Task, error)
+	Delete(userID, taskID string) error
 }
 
 type taskService struct {
-	taskRepo   storage.TaskRepository
-	columnRepo storage.ColumnRepository
-	generateID func() string
+	taskRepo        storage.TaskRepository
+	columnRepo      storage.ColumnRepository
+	boardMemberRepo storage.BoardMemberRepository
+	generateID      func() string
 }
 
-func NewTaskService(taskRepo storage.TaskRepository, columnRepo storage.ColumnRepository, generateID func() string) TaskService {
+func NewTaskService(
+	taskRepo storage.TaskRepository,
+	columnRepo storage.ColumnRepository,
+	boardMemberRepo storage.BoardMemberRepository,
+	generateID func() string,
+) TaskService {
 	return &taskService{
-		taskRepo:   taskRepo,
-		columnRepo: columnRepo,
-		generateID: generateID,
+		taskRepo:        taskRepo,
+		columnRepo:      columnRepo,
+		boardMemberRepo: boardMemberRepo,
+		generateID:      generateID,
 	}
 }
 
-func (s *taskService) Create(title string, description string, columnID string) (domain.Task, error) {
+func (s *taskService) Create(userID, title string, description string, columnID string) (domain.Task, error) {
 	if title == "" || columnID == "" {
 		return domain.Task{}, domain.ErrInvalidInput
 	}
 
-	_, err := s.columnRepo.GetByID(columnID)
+	column, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
 		return domain.Task{}, domain.ErrNotFound
+	}
+
+	if err := s.requireBoardAccess(column.BoardID, userID); err != nil {
+		return domain.Task{}, err
 	}
 
 	tasks, err := s.taskRepo.GetByColumnID(columnID)
@@ -53,18 +65,24 @@ func (s *taskService) Create(title string, description string, columnID string) 
 		CreatedAt:   time.Now(),
 	}
 
-	s.taskRepo.Create(task)
+	if _, err := s.taskRepo.Create(task); err != nil {
+		return domain.Task{}, err
+	}
 
 	return task, nil
 }
-func (s *taskService) GetByColumnID(columnID string) ([]domain.Task, error) {
+func (s *taskService) GetByColumnID(userID, columnID string) ([]domain.Task, error) {
 	if columnID == "" {
 		return nil, domain.ErrInvalidInput
 	}
 
-	_, err := s.columnRepo.GetByID(columnID)
+	column, err := s.columnRepo.GetByID(columnID)
 	if err != nil {
 		return nil, domain.ErrNotFound
+	}
+
+	if err := s.requireBoardAccess(column.BoardID, userID); err != nil {
+		return nil, err
 	}
 
 	task, err := s.taskRepo.GetByColumnID(columnID)
@@ -74,12 +92,21 @@ func (s *taskService) GetByColumnID(columnID string) ([]domain.Task, error) {
 	return task, nil
 }
 
-func (s *taskService) Update(taskID string, title string, description string) (domain.Task, error) {
+func (s *taskService) Update(userID, taskID string, title string, description string) (domain.Task, error) {
 	if taskID == "" || title == "" {
 		return domain.Task{}, domain.ErrInvalidInput
 	}
 	task, err := s.taskRepo.GetByID(taskID)
 	if err != nil {
+		return domain.Task{}, err
+	}
+
+	column, err := s.columnRepo.GetByID(task.ColumnID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	if err := s.requireBoardAccess(column.BoardID, userID); err != nil {
 		return domain.Task{}, err
 	}
 
@@ -95,28 +122,79 @@ func (s *taskService) Update(taskID string, title string, description string) (d
 	return updated, nil
 }
 
-func (s *taskService) Delete(taskID string) error {
+func (s *taskService) Delete(userID, taskID string) error {
 	if taskID == "" {
 		return domain.ErrInvalidInput
 	}
 
-	_, err := s.taskRepo.GetByID(taskID)
+	task, err := s.taskRepo.GetByID(taskID)
 	if err != nil {
 		return err
 
 	}
+
+	column, err := s.columnRepo.GetByID(task.ColumnID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.requireBoardAccess(column.BoardID, userID); err != nil {
+		return err
+	}
+
 	return s.taskRepo.Delete(taskID)
 
 }
 
-func (s *taskService) Move(
-	taskID, columnID string,
-	position int,
-) (domain.Task, error) {
+func (s *taskService) Move(userID, taskID, columnID string, position int) (domain.Task, error) {
 
 	if taskID == "" || columnID == "" || position < 0 {
 		return domain.Task{}, domain.ErrInvalidInput
 	}
 
+	task, err := s.taskRepo.GetByID(taskID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	// исходная колонка задачи
+	sourceColumn, err := s.columnRepo.GetByID(task.ColumnID)
+	if err != nil {
+		return domain.Task{}, err
+	}
+
+	// целевая колонка
+	destColumn, err := s.columnRepo.GetByID(columnID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.Task{}, domain.ErrNotFound
+		}
+		return domain.Task{}, err
+	}
+
+	// перемещать задачу можно только в пределах одной доски
+	if sourceColumn.BoardID != destColumn.BoardID {
+		return domain.Task{}, domain.ErrForbidden
+	}
+
+	if err := s.requireBoardAccess(sourceColumn.BoardID, userID); err != nil {
+		return domain.Task{}, err
+	}
+
 	return s.taskRepo.Move(taskID, columnID, position)
+}
+
+func (s *taskService) requireBoardAccess(
+	boardID, userID string,
+) error {
+
+	_, err := s.boardMemberRepo.GetRole(boardID, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.ErrForbidden
+		}
+		return err
+	}
+
+	return nil
 }

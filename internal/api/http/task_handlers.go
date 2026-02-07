@@ -17,6 +17,11 @@ func CreateTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			return
 		}
 
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		var input struct {
 			Title       string `json:"title"`
 			ColumnID    string `json:"column_id"`
@@ -28,7 +33,7 @@ func CreateTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			return
 		}
 
-		task, err := taskService.Create(input.Title, input.Description, input.ColumnID)
+		task, err := taskService.Create(userID, input.Title, input.Description, input.ColumnID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -49,13 +54,18 @@ func GetTasksByColumnHandler(taskService service.TaskService) http.HandlerFunc {
 			return
 		}
 
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
 		columnID := r.URL.Query().Get("column_id")
 		if columnID == "" {
 			HandleError(w, domain.ErrInvalidInput)
 			return
 		}
 
-		tasks, err := taskService.GetByColumnID(columnID)
+		tasks, err := taskService.GetByColumnID(userID, columnID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -71,6 +81,11 @@ func UpdateTaskHandler(taskService service.TaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
 			return
 		}
 		taskID := r.URL.Query().Get("id")
@@ -89,7 +104,7 @@ func UpdateTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			return
 		}
 
-		task, err := taskService.Update(taskID, input.Title, input.Description)
+		task, err := taskService.Update(userID, taskID, input.Title, input.Description)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -106,12 +121,17 @@ func DeleteTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
 		taskID := r.URL.Query().Get("id")
 		if taskID == "" {
 			HandleError(w, domain.ErrInvalidInput)
 			return
 		}
-		err := taskService.Delete(taskID)
+		err := taskService.Delete(userID, taskID)
 		if err != nil {
 			HandleError(w, err)
 			return
@@ -126,6 +146,11 @@ func MoveTaskHandler(taskService service.TaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
 			return
 		}
 
@@ -145,7 +170,7 @@ func MoveTaskHandler(taskService service.TaskService) http.HandlerFunc {
 			return
 		}
 
-		task, err := taskService.Move(taskID, input.ColumnID, input.Position)
+		task, err := taskService.Move(userID, taskID, input.ColumnID, input.Position)
 		if err != nil {
 			HandleError(w, err)
 			return
