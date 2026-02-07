@@ -22,6 +22,7 @@ func TestCreateColumn(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -29,11 +30,11 @@ func TestCreateColumn(t *testing.T) {
 	}
 	boardRepo.Create(board)
 
-	service := NewColumnService(columnRepo, boardRepo, taskRepo, func() string {
+	service := NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, func() string {
 		return "column-1"
 	})
 
-	column, err := service.Create("My column", board.ID)
+	column, err := service.Create("1", "My column", board.ID)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -60,16 +61,17 @@ func TestColumnServiceCreateInvalidInput(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	boardRepo.Create(domain.Board{
 		ID: "board-1",
 	})
 
-	service := NewColumnService(columnRepo, boardRepo, taskRepo, func() string {
+	service := NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, func() string {
 		return "column-1"
 	})
 
-	_, err = service.Create("", "board-1")
+	_, err = service.Create("", "board-1", "1")
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -92,12 +94,13 @@ func TestColumnServiceCreateBoardNotFound(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
-	service := NewColumnService(columnRepo, boardRepo, taskRepo, func() string {
+	service := NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, func() string {
 		return "column-1"
 	})
 
-	_, err = service.Create("Column", "unknown-board")
+	_, err = service.Create("1", "Column", "unknown-board")
 
 	if err != domain.ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
@@ -116,16 +119,17 @@ func TestColumnServiceGetByBoardIDEmpty(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	boardRepo.Create(domain.Board{
 		ID: "board-1",
 	})
 
-	service := NewColumnService(columnRepo, boardRepo, taskRepo, func() string {
+	service := NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, func() string {
 		return "id"
 	})
 
-	columns, err := service.GetByBoardID("board-1")
+	columns, err := service.GetByBoardID("1", "board-1")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -148,19 +152,20 @@ func TestColumnServiceGetByBoardIDWithData(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	boardRepo.Create(domain.Board{
 		ID: "board-1",
 	})
 
-	service := NewColumnService(columnRepo, boardRepo, taskRepo, func() string {
+	service := NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, func() string {
 		return "column-id"
 	})
 
-	_, _ = service.Create("Column 1", "board-1")
-	_, _ = service.Create("Column 2", "board-1")
+	_, _ = service.Create("1", "Column 1", "board-1")
+	_, _ = service.Create("1", "Column 2", "board-1")
 
-	columns, err := service.GetByBoardID("board-1")
+	columns, err := service.GetByBoardID("1", "board-1")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

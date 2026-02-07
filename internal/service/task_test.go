@@ -22,6 +22,7 @@ func TestCreateTask(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -38,11 +39,11 @@ func TestCreateTask(t *testing.T) {
 
 	columnRepo.Create(column)
 
-	service := NewTaskService(taskRepo, columnRepo, func() string {
+	service := NewTaskService(taskRepo, columnRepo, boardMemberRepo, func() string {
 		return "task-1"
 	})
 
-	task, err := service.Create("My task", "New", column.ID)
+	task, err := service.Create("1", "My task", "New", column.ID)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -70,6 +71,7 @@ func TestCreateTaskInvalidInput(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -86,11 +88,11 @@ func TestCreateTaskInvalidInput(t *testing.T) {
 
 	columnRepo.Create(column)
 
-	service := NewTaskService(taskRepo, columnRepo, func() string {
+	service := NewTaskService(taskRepo, columnRepo, boardMemberRepo, func() string {
 		return "task-1"
 	})
 
-	_, err = service.Create("", "New", column.ID)
+	_, err = service.Create("1", "", "New", column.ID)
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -113,6 +115,7 @@ func TestTaskServiceCreateColumnNotFound(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -128,11 +131,11 @@ func TestTaskServiceCreateColumnNotFound(t *testing.T) {
 
 	columnRepo.Create(column)
 
-	service := NewTaskService(taskRepo, columnRepo, func() string {
+	service := NewTaskService(taskRepo, columnRepo, boardMemberRepo, func() string {
 		return "task-1"
 	})
 
-	_, err = service.Create("Column", "New", "unknown-column")
+	_, err = service.Create("1", "Column", "New", "unknown-column")
 
 	if err != domain.ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
@@ -151,6 +154,7 @@ func TestTaskServiceGetByColumnIDEmpty(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -166,11 +170,11 @@ func TestTaskServiceGetByColumnIDEmpty(t *testing.T) {
 
 	columnRepo.Create(column)
 
-	service := NewTaskService(taskRepo, columnRepo, func() string {
+	service := NewTaskService(taskRepo, columnRepo, boardMemberRepo, func() string {
 		return "task-1"
 	})
 
-	tasks, err := service.GetByColumnID("Column-1")
+	tasks, err := service.GetByColumnID("1", "Column-1")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -193,6 +197,7 @@ func TestTaskServiceGetByColumnIDWithData(t *testing.T) {
 	boardRepo := postgres.NewBoardRepository(pool)
 	columnRepo := postgres.NewColumnRepository(pool)
 	taskRepo := postgres.NewTaskRepository(pool)
+	boardMemberRepo := postgres.NewBoardMemberRepository(pool)
 
 	board := domain.Board{
 		ID:   "board-1",
@@ -208,14 +213,14 @@ func TestTaskServiceGetByColumnIDWithData(t *testing.T) {
 
 	columnRepo.Create(column)
 
-	service := NewTaskService(taskRepo, columnRepo, func() string {
+	service := NewTaskService(taskRepo, columnRepo, boardMemberRepo, func() string {
 		return "task-1"
 	})
 
-	_, _ = service.Create("Task 1", "New", "Column-1")
-	_, _ = service.Create("Task 2", "Old", "Column-1")
+	_, _ = service.Create("1", "Task 1", "New", "Column-1")
+	_, _ = service.Create("1", "Task 2", "Old", "Column-1")
 
-	tasks, err := service.GetByColumnID("Column-1")
+	tasks, err := service.GetByColumnID("1", "Column-1")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
