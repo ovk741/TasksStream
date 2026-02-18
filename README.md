@@ -9,181 +9,76 @@ Base URL: http://localhost:8080
 
 Формат данных: JSON
 
-Аутентификация: нет (пока)
+Аутентификация: JWT authentication (access + refresh tokens)
 
 ## Архитектура
 
-HTTP Request
-↓
-Handlers (API)
-↓
-Services (бизнес-логика)
-↓
-Repositories (storage interface)
-↓
-Memory Storage (реализация)
-
-## Структура проекта
-
 internal/
-api/http/ # HTTP handlers
-service/ # Бизнес-логика
-storage/
-memory/ # In-memory репозитории
-domain/ # Доменные модели
-cmd/
-app/
-main.go
-
----
-
-Сущности:
-
-Board (Доска)
-{
-  "id": "string",
-  "name": "string",
-  "created_at": "RFC3339 timestamp"
-}
-
-Column (Колонка)
-{
-  "id": "string",
-  "title": "string",
-  "board_id": "string",
-  "created_at": "RFC3339 timestamp"
-}
-
-Task (Карточка)
-{
-  "id": "string",
-  "title": "string",
-  "description": "string",
-  "column_id": "string",
-  "created_at": "RFC3339 timestamp"
-}
+ ├── api/http        # HTTP handlers
+ ├── service         # Бизнес-логика
+ ├── storage         # PostgreSQL репозитории
+ ├── domain          # Доменные модели и ошибки
+ ├── infra/auth      # JWT
+ └── infra/security  # Password hashing (bcrypt)
 
 
 ---
 
-Boards API
+## Аутентификация
 
-Создать доску
+Используется Bearer токен:
 
-POST /boards
+Authorization: Bearer <access_token>
 
-Request:
+Endpoints
 
-{
-  "name": "My board"
-}
-Response 201 Created:
+POST /auth/register
 
-{
-  "id": "board-1",
-  "name": "My board",
-  "created_at": "2026-01-27T12:00:00Z"
-}
+POST /auth/login
 
-Получить все доски
-
-GET /boards
-
-Response 200 OK:
-
-[
-  {
-    "id": "board-1",
-    "name": "My board",
-    "created_at": "2026-01-27T12:00:00Z"
-  }
-]
-
-Columns API
-
-Создать колонку
-
-POST /columns
-
-Request:
-
-{
-  "board_id": "board-1",
-  "title": "To Do"
-}
-Response 201 Created:
-
-{
-  "id": "column-1",
-  "title": "To Do",
-  "board_id": "board-1",
-  "created_at": "2026-01-27T12:05:00Z"
-}
-
-Получить колонки доски
-
-GET /columns?board_id={board_id}
-
-Tasks API
-
-Создать задачу
-
-POST /tasks
-
-Request:
-
-{
-  "title": "Implement API",
-  "description": "Write handlers and services",
-  "column_id": "column-1"
-}
-Response 201 Created:
-
-{
-  "id": "task-1",
-  "title": "Implement API",
-  "description": "Write handlers and services",
-  "column_id": "column-1",
-  "created_at": "2026-01-27T12:10:00Z"
-}
-
-Получить задачи колонки
-
-GET /tasks?column_id={column_id}
-
-Обработка ошибок
-
-Ошибки возвращаются в формате:
-
-{
-  "error": "error message"
-}
-
-Основные ошибки:
-
-HTTP Code	Error
-400	invalid input
-404	not found
-500	internal error
+POST /auth/refresh
 
 
-Тестирование
-Запуск всех тестов:
+## Boards API
 
-go test ./...
-Тесты покрывают:
+| Метод  | Endpoint      | Описание              |
+| ------ | ------------- | --------------------- |
+| POST   | `/boards`     | Создать доску         |
+| GET    | `/boards`     | Получить список досок |
+| PUT    | `/boards?id=` | Обновить доску        |
+| DELETE | `/boards?id=` | Удалить доску         |
 
-сервисы (unit)
+## Board members
 
-HTTP handlers (в процессе)
+| Метод  | Endpoint                    | Описание                |
+| ------ | --------------------------- | ----------------------- |
+| POST   | `/boards/invite`            | Пригласить пользователя |
+| GET    | `/boards/members?board_id=` | Получить участников     |
+| DELETE | `/boards/members/remove`    | Удалить участника       |
 
-бизнес-валидацию
+## Columns API
 
-🛠 Запуск проекта
-go run cmd/app/main.go
-Сервер будет доступен по адресу:
+| Метод  | Endpoint             | Описание               |
+| ------ | -------------------- | ---------------------- |
+| POST   | `/columns`           | Создать колонку        |
+| GET    | `/columns?board_id=` | Получить колонки доски |
+| PUT    | `/columns?id=`       | Обновить колонку       |
+| DELETE | `/columns?id=`       | Удалить колонку        |
+| PUT    | `/columns/move`      | Переместить колонку    |
 
-http://localhost:8080
+## Tasks API
+
+| Метод  | Endpoint            | Описание           |
+| ------ | ------------------- | ------------------ |
+| POST   | `/tasks`            | Создать задачу     |
+| GET    | `/tasks?column_id=` | Получить задачи    |
+| PUT    | `/tasks?id=`        | Обновить задачу    |
+| DELETE | `/tasks?id=`        | Удалить задачу     |
+| PUT    | `/tasks/move`       | Переместить задачу |
+
+
+
+
 
 
 
