@@ -24,14 +24,22 @@ func main() {
 	_ = godotenv.Load()
 
 	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		dsn = "postgres://user:password@localhost:5432/tasks?sslmode=disable"
+	}
+
 	accessSecret := os.Getenv("ACCESS_SECRET")
+	if accessSecret == "" {
+		accessSecret = "super-secret-access-key"
+	}
+
 	refreshSecret := os.Getenv("REFRESH_SECRET")
+	if refreshSecret == "" {
+		refreshSecret = "super-secret-refresh-key"
+	}
 
-	accessTTLMinutes, _ := strconv.Atoi(os.Getenv("ACCESS_TTL_MINUTES"))
-	refreshTTLHours, _ := strconv.Atoi(os.Getenv("REFRESH_TTL_HOURS"))
-
-	accessTTL := time.Duration(accessTTLMinutes) * time.Minute
-	refreshTTL := time.Duration(refreshTTLHours) * time.Hour
+	accessTTL := 15 * time.Minute
+	refreshTTL := 30 * 24 * time.Hour
 
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
@@ -54,7 +62,6 @@ func main() {
 	boardService := service.NewBoardService(boardRepo, columnRepo, taskRepo, boardMemberRepo, generateID)
 	columnService := service.NewColumnService(columnRepo, boardRepo, boardMemberRepo, taskRepo, generateID)
 	taskService := service.NewTaskService(taskRepo, columnRepo, boardMemberRepo, generateID)
-
 	mux := http.NewServeMux()
 	authMW := middleware.AuthMiddleware(jwtManager)
 
@@ -87,10 +94,6 @@ func main() {
 		}
 
 	})))
-
-	mux.Handle("/boards/invite", authMW(httpapi.InviteToBoardHandler(boardService)))
-	mux.Handle("/boards/members", authMW(httpapi.GetBoardMembersHandler(boardService)))
-	mux.Handle("/boards/members/remove", authMW(httpapi.RemoveBoardMemberHandler(boardService)))
 
 	mux.Handle("/columns", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -126,8 +129,7 @@ func main() {
 
 	mux.Handle("/tasks/move", authMW(httpapi.MoveTaskHandler(taskService)))
 
-	port := os.Getenv("PORT")
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
 func generateID() string {
