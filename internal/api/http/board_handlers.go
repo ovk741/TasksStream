@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/ovk741/TasksStream/internal/domain"
 	"github.com/ovk741/TasksStream/internal/service"
 )
 
@@ -127,4 +128,112 @@ func DeleteBoardHandler(boardService service.BoardService) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 
+}
+
+func InviteToBoardHandler(boardService service.BoardService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
+		var input struct {
+			BoardID string           `json:"board_id"`
+			UserID  string           `json:"user_id"`
+			Role    domain.BoardRole `json:"role"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if err := boardService.InviteUser(
+			userID,
+			input.BoardID,
+			input.UserID,
+			input.Role,
+		); err != nil {
+			HandleError(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func GetBoardMembersHandler(boardService service.BoardService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		userID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
+		boardID := r.URL.Query().Get("board_id")
+		if boardID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "board_id is required",
+			})
+			return
+		}
+
+		members, err := boardService.GetMembers(userID, boardID)
+		if err != nil {
+			HandleError(w, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(members)
+	}
+}
+
+func RemoveBoardMemberHandler(boardService service.BoardService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodDelete {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		requesterID, ok := MustGetUserID(w, r)
+		if !ok {
+			return
+		}
+
+		var input struct {
+			BoardID string `json:"board_id"`
+			UserID  string `json:"user_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if input.BoardID == "" || input.UserID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if err := boardService.RemoveUser(requesterID, input.BoardID, input.UserID); err != nil {
+			HandleError(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
 }

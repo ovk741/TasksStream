@@ -1,0 +1,222 @@
+{
+  "openapi": "1.0",
+  "info": {
+    "title": "TasksStream API",
+    "version": "1.0.0",
+    "description": "API для управления досками, колонками, задачами и пользователями"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Board": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BoardMember": {
+        "type": "object",
+        "properties": {
+          "user_id": { "type": "string" },
+          "role": { "type": "string", "enum": ["owner","editor","viewer"] }
+        }
+      },
+      "Column": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "board_id": { "type": "string" },
+          "position": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "column_id": { "type": "string" },
+          "position": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AuthTokens": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" }
+        }
+      },
+      "AuthRequest": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string" },
+          "password": { "type": "string" }
+        },
+        "required": ["email","password"]
+      }
+    }
+  },
+  "security": [
+    { "BearerAuth": [] }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Регистрация пользователя",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthRequest" } } }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Логин пользователя",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Успешно, возвращает токены",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthTokens" } } }
+          },
+          "400": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Обновление токенов",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type":"object","properties":{"refresh_token":{"type":"string"}} } } }
+        },
+        "responses": {
+          "200": { "description": "Новые токены", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthTokens" } } } }
+        }
+      }
+    },
+    "/boards": {
+      "post": {
+        "summary": "Создать доску",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"name":{"type":"string"}},"required":["name"] } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Board" } } } } }
+      },
+      "get": {
+        "summary": "Получить все доски пользователя",
+        "responses": { "200": { "description": "Список досок", "content": { "application/json": { "schema": { "type":"array","items":{ "$ref":"#/components/schemas/Board" } } } } } }
+      },
+      "put": {
+        "summary": "Обновить доску",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}}],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"name":{"type":"string"}},"required":["name"] } } } },
+        "responses": { "200": { "description": "Обновлённая доска", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Board" } } } } }
+      },
+      "delete": {
+        "summary": "Удалить доску",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/boards/invite": {
+      "post": {
+        "summary": "Пригласить пользователя на доску",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"board_id":{"type":"string"},"user_id":{"type":"string"},"role":{"type":"string","enum":["editor","viewer"]}},"required":["board_id","user_id","role"] } } } },
+        "responses": { "204": { "description": "User invited" } }
+      }
+    },
+    "/boards/members": {
+      "get": {
+        "summary": "Получить всех участников доски",
+        "parameters":[{"name":"board_id","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": { "200": { "description": "Список участников", "content": { "application/json": { "schema": { "type":"array","items":{"$ref":"#/components/schemas/BoardMember"}} } } } }
+      }
+    },
+    "/boards/members/remove": {
+      "delete": {
+        "summary": "Удалить участника доски",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"board_id":{"type":"string"},"user_id":{"type":"string"}},"required":["board_id","user_id"] } } } },
+        "responses": { "204": { "description": "Member removed" } }
+      }
+    },
+    "/columns": {
+      "post": {
+        "summary": "Создать колонку",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"board_id":{"type":"string"},"title":{"type":"string"}},"required":["board_id","title"] } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Column" } } } } }
+      },
+      "get": {
+        "summary": "Получить колонки доски",
+        "parameters":[{"name":"board_id","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": { "200": { "description": "Список колонок", "content": { "application/json": { "schema": { "type":"array","items":{"$ref":"#/components/schemas/Column"}} } } } }
+      },
+      "put": {
+        "summary": "Обновить колонку",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}}],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"title":{"type":"string"}},"required":["title"] } } } },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Column" } } } } }
+      },
+      "delete": {
+        "summary": "Удалить колонку",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/columns/move": {
+      "put": {
+        "summary": "Переместить колонку",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}},{"name":"position","in":"query","required":true,"schema":{"type":"integer"}}],
+        "responses": { "200": { "description": "Moved", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Column" } } } } }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "summary": "Создать задачу",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"column_id":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"}},"required":["column_id","title"] } } } },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Task" } } } } }
+      },
+      "get": {
+        "summary": "Получить задачи колонки",
+        "parameters":[{"name":"column_id","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": { "200": { "description": "Список задач", "content": { "application/json": { "schema": { "type":"array","items":{"$ref":"#/components/schemas/Task"}} } } } }
+      },
+      "put": {
+        "summary": "Обновить задачу",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}}],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type":"object","properties":{"title":{"type":"string"},"description":{"type":"string"}},"required":["title"] } } } },
+        "responses": { "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Task" } } } } }
+      },
+      "delete": {
+        "summary": "Удалить задачу",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": { "204": { "description": "Deleted" } }
+      }
+    },
+    "/tasks/move": {
+      "put": {
+        "summary": "Переместить задачу",
+        "parameters":[{"name":"id","in":"query","required":true,"schema":{"type":"string"}},{"name":"column_id","in":"query","required":true,"schema":{"type":"string"}},{"name":"position","in":"query","required":true,"schema":{"type":"integer"}}],
+        "responses": { "200": { "description": "Moved", "content": { "application/json": { "schema": { "$ref":"#/components/schemas/Task" } } } } }
+      }
+    }
+  }
+}
