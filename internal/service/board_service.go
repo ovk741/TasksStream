@@ -13,10 +13,6 @@ type BoardService interface {
 	GetAll(userID string) ([]domain.Board, error)
 	Update(userID, boardID, name string) (domain.Board, error)
 	Delete(userID, boardID string) error
-	InviteUser(ownerID string, boardID string, userID string, role domain.BoardRole) error
-
-	GetMembers(requesterID, boardID string) ([]domain.BoardMember, error)
-	RemoveUser(requesterID, boardID, userID string) error
 }
 
 type boardService struct {
@@ -160,84 +156,4 @@ func (s *boardService) requireMember(boardID, userID string) (domain.BoardRole, 
 	}
 
 	return role, nil
-}
-
-func (s *boardService) InviteUser(ownerID string, boardID string, userID string, role domain.BoardRole) error {
-	if ownerID == "" || boardID == "" || userID == "" {
-		return domain.ErrInvalidInput
-	}
-
-	if role != domain.BoardRoleEditor && role != domain.BoardRoleViewer {
-		return domain.ErrInvalidInput
-	}
-
-	if _, err := s.boardRepo.GetByID(boardID); err != nil {
-		return domain.ErrNotFound
-	}
-
-	inviterRole, err := s.boardMemberRepo.GetRole(boardID, ownerID)
-	if err != nil {
-		return err
-	}
-	if inviterRole != domain.BoardRoleOwner {
-		return domain.ErrForbidden
-	}
-
-	_, err = s.boardMemberRepo.GetRole(boardID, userID)
-	if err == nil {
-		return domain.ErrUserAlreadyExists
-	}
-	if !errors.Is(err, domain.ErrNotFound) {
-		return err
-	}
-
-	member := domain.BoardMember{
-		BoardID: boardID,
-		UserID:  userID,
-		Role:    role,
-	}
-
-	return s.boardMemberRepo.Add(member)
-}
-
-func (s *boardService) GetMembers(
-	requesterID, boardID string,
-) ([]domain.BoardMember, error) {
-
-	if boardID == "" {
-		return nil, domain.ErrInvalidInput
-	}
-
-	_, err := s.requireMember(boardID, requesterID)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.boardMemberRepo.GetMembers(boardID)
-}
-
-func (s *boardService) RemoveUser(
-	requesterID, boardID, userID string,
-) error {
-
-	if boardID == "" || userID == "" {
-		return domain.ErrInvalidInput
-	}
-
-	requesterRole, err := s.requireMember(boardID, requesterID)
-	if err != nil {
-		return err
-	}
-
-	// только owner может удалять
-	if requesterRole != domain.BoardRoleOwner {
-		return domain.ErrForbidden
-	}
-
-	// нельзя удалить самого себя (без передачи ownership)
-	if requesterID == userID {
-		return domain.ErrForbidden
-	}
-
-	return s.boardMemberRepo.Remove(boardID, userID)
 }
